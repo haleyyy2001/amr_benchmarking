@@ -1,4 +1,4 @@
-Below is a sample **README** that compiles the key lessons from our previous debugging sessions on **Kover** environment setup for AMR benchmarking, focusing on a **Python 2.7** conda environment called `kover-env`. Adjust directory paths to match your HPC or local system.
+**Python 2.7** conda environment called `kover-env`. 
 
 ---
 
