@@ -1,173 +1,208 @@
-**Python 2.7** conda environment called `kover-env`. 
-
----
 
 # README: Setting Up the Kover Environment (kover-env)
 
-This document describes how to create and configure a conda environment, named **kover-env**, for running **Kover** (2.0) on your HPC system. It covers installing Python 2.7, ensuring MultiDSK is properly available in `PATH`, and troubleshooting common setup issues we encountered in our AMR benchmarking.
+This document describes how to create and configure a conda environment named **kover-env**, using **Python 2.7**, for running **Kover** (2.0+) on an HPC system. It also covers installing core dependencies like **MultiDSK** (or **KMC**) and includes troubleshooting pointers.
 
 ---
 
-## 1. Create and Activate the Conda Environment
+## 1. Load HPC Modules (If Applicable)
 
-1. **Load any necessary HPC modules** (if your cluster uses environment modules). Often you might run:
-   ```bash
-   module load anaconda3/2022.10
-   ```
-   or a similar command, depending on your system.
+Depending on your HPC setup, you may need to load an Anaconda/conda module first. For example:
+```bash
+module load anaconda3/2022.10
+```
+*(Adjust module name/version as needed. Some systems may provide `mamba` instead.)*
 
-2. **Create** the `kover-env` environment with Python 2.7:
+---
+
+## 2. Create and Activate the Python 2.7 Environment
+
+1. **Create** a new conda environment called `kover-env`:
    ```bash
    conda create -n kover-env python=2.7 -y
    ```
-3. **Activate** it:
+   Alternatively, you can install to a fixed path if you prefer:
+   ```bash
+   conda create --prefix /burg/pmg/users/ht2666/mambaforge/envs/kover-env python=2.7 -y
+   ```
+
+2. **Activate** the newly created environment:
    ```bash
    conda activate kover-env
    ```
-4. Verify you’re in Python 2.7:
+   or, if using a specific prefix:
+   ```bash
+   conda activate /burg/pmg/users/ht2666/mambaforge/envs/kover-env
+   ```
+
+3. **Verify** the Python version:
    ```bash
    python --version
-   # Should print something like: Python 2.7.x
+   # Should print: Python 2.7.x
    ```
 
 ---
 
-## 2. Install Kover and Dependencies
+## 3. Install Kover and Required Dependencies
 
-### 2.1 Kover 2.0
+### 3.1 Install Kover
 
-If you have a local clone of the Kover repo, navigate to it and run:
-```bash
-python setup.py install
-```
-or install via pip if available:
-```bash
-pip install kover==2.0
-```
-*(Check the exact version or local tarball instructions if you have them.)*
+There are multiple ways to install Kover 2.0.x:
 
-**Alternatively**, if your HPC environment includes a custom build of Kover you can use, just confirm the relevant `kover.py` is accessible in your environment’s `PATH`.
+- **From a local clone**:  
+  ```bash
+  cd /path/to/kover-source/
+  python setup.py install
+  ```
+- **From a (custom) conda channel or PyPI** (if available):  
+  ```bash
+  pip install kover==2.0
+  ```
+  *(Adjust the version/tag if needed.)*
 
-### 2.2 MultiDSK and KMC
+### 3.2 Install/Check External Tools (MultiDSK or KMC)
 
-Kover relies on external tools (MultiDSK and KMC or similar) for k-mer counting:
+Kover relies on external k-mer counting tools:
 
-1. **MultiDSK**:  
-   - Confirm it’s installed in your environment:
+- **KMC**  
+  ```bash
+  conda install -c bioconda kmc
+  ```
+  This should place the `kmc` binary in your active environment’s PATH.
+
+- **MultiDSK**  
+  Some Kover pipelines may require MultiDSK:
+  1. Confirm it’s installed:
      ```bash
      which multidsk
      ```
-   - If not found, install it or place it in `kover-env/bin`. One approach is to download MultiDSK from its repository (if a precompiled binary is provided), then copy that binary into:
+     If not found, you can install or copy a precompiled binary into:
      ```
      /burg/pmg/users/ht2666/mambaforge/envs/kover-env/bin/
      ```
-   - Finally, verify:
+  2. Test it:
      ```bash
      multidsk --help
      ```
-     should print usage info.
-
-2. **KMC** (optional if you use it in some Kover subcommands):
-   ```bash
-   conda install -c bioconda kmc
-   ```
+     should display usage info.
 
 ---
 
-## 3. Confirm the Setup
+## 4. Verifying the Setup
 
-When you run `kover.py`, Kover checks for:
-1. **MultiDSK** in your `PATH`.  
-2. The correct Python 2.7 environment with `kmer_pack`, `kmer_count`, and other submodules installed.
+Once installed, confirm that Kover and the related utilities are accessible in your environment:
 
-Run:
 ```bash
+# Check Python location
 which python
+python --version
+
+# Check Kover’s import
 python -c "import kover; print(kover.__file__)"
+
+# Check MultiDSK or KMC
 which multidsk
 multidsk --help
+which kmc
+kmc --help
 ```
-All these commands should point to paths inside `kover-env/bin` or the site-packages of `kover-env`.
+
+All paths should point to your `kover-env` environment (e.g., `.../kover-env/bin/` or site-packages under `kover-env`).
 
 ---
 
-## 4. Common Issues & Troubleshooting
+## 5. Export or Share the Environment (Optional)
 
-1. **`ImportError: No module named kmer_pack` or `kmer_count`**  
-   - Means Kover’s internal Python modules aren’t fully installed. Re-run:
-     ```bash
-     cd /path/to/Kover/
-     python setup.py install
-     ```
-     inside `kover-env`.
+To help collaborators replicate the exact environment, you can export it to a YAML file:
 
-2. **`RuntimeError: [ERROR] MultiDSK binary not found in PATH!`**  
-   - Even if you see “Found MultiDSK at …” in partial logs, HPC environment changes can break your `PATH`. Fix by placing MultiDSK in `kover-env/bin` and confirming with:
-     ```bash
-     which multidsk
-     ```
-
-3. **`IOError: Cannot send after transport endpoint shutdown`**  
-   - Typically an HPC filesystem issue or NFS glitch. Retry once the filesystem is stable. Not an environment problem per se, but can halt Kover runs mid-way.
-
-4. **`LookupError: unknown encoding: string-escape`**  
-   - Usually a mismatch between Python 2 and system locales. Make sure you’re truly in Python 2.7 and have standard locales set:
-     ```bash
-     export LANG=en_US.UTF-8
-     export LC_ALL=en_US.UTF-8
-     ```
-   - Double-check you’re not mixing Python 3 environment variables.
+```bash
+conda env export --prefix /burg/pmg/users/ht2666/mambaforge/envs/kover-env > kover-env.yml
+```
+They can recreate the same environment by running:
+```bash
+conda env create -f kover-env.yml
+```
 
 ---
 
-## 5. Integrating with HPC Job Scripts
+## 6. Using Kover in HPC Job Scripts
 
-Many HPC job scripts look like:
+A typical Slurm job script might look like this:
+
 ```bash
 #!/bin/bash
 #SBATCH --job-name=kover_job
+#SBATCH --output=/path/to/logs/kover_out_%j.log
+#SBATCH --error=/path/to/logs/kover_err_%j.log
 #SBATCH --time=48:00:00
 #SBATCH --mem=64G
 #SBATCH --cpus-per-task=16
-#SBATCH --output=/path/to/log/kover_out_%j.log
-#SBATCH --error=/path/to/log/kover_err_%j.log
 
-module load anaconda3/2022.10  # or whichever module
-conda activate kover-env
+module load anaconda3/2022.10   # or whichever module needed
+conda activate kover-env        # or the full path to your env
 
 # Verify environment
 which python
-which multidsk
+python --version
+which kover.py  # or however Kover is called
+which multidsk  # or kmc
 kover.py --help
 
-# Run your Kover command(s)
+# Run your Kover commands
 kover.py dataset create from-contigs ...
 kover.py learn scm --dataset ...
-# ...
+...
 ```
-Ensure you:
-
-1. **Activate `kover-env`** early in the script.  
-2. Confirm HPC or Slurm sees the right `PATH` and environment variables.
 
 ---
 
-## 6. Memory and Disk Considerations
+## 7. Troubleshooting
 
-- **Kover** can generate large intermediate files (especially for big datasets with millions of k-mers).  
-- Ensure you request enough memory (`--mem=XXG`) in Slurm.  
-- Clean up after runs, especially if your HPC scratch space is limited.
+### 7.1 Missing Kover Modules (`ImportError`)
+
+If you see something like:
+```
+ImportError: No module named kmer_pack
+```
+- Reinstall Kover in the current Python 2.7 environment:
+  ```bash
+  cd /path/to/kover-source/
+  python setup.py install
+  ```
+
+### 7.2 MultiDSK or KMC Not Found in `PATH`
+
+If Kover fails with errors like “`RuntimeError: [ERROR] MultiDSK binary not found in PATH!`”:
+- Ensure you have **MultiDSK** (or **kmc**) installed in the environment or in a directory recognized by PATH.
+- If your HPC environment modifies `PATH` between interactive and batch modes, consider copying the `multidsk` binary into `/burg/pmg/users/ht2666/mambaforge/envs/kover-env/bin/`.
+
+### 7.3 Encoding Errors (`unknown encoding: string-escape`)
+
+- This is often caused by locale settings. For Python 2.7, ensure:
+  ```bash
+  export LANG=en_US.UTF-8
+  export LC_ALL=en_US.UTF-8
+  ```
+- Confirm you’re actually in Python 2.7 (not 3.x) and that you’re not mixing environment variables from another environment.
+
+### 7.4 HPC Filesystem Issues
+
+If you see NFS or I/O-related errors (“`Cannot send after transport endpoint shutdown`”), it could be HPC filesystem congestion. Retry after ensuring your scratch directory is stable.
 
 ---
 
-## 7. Final Check
+## 8. Memory and Disk Considerations
 
-Once you finish, try a small test dataset. If it completes with no errors and you see correct Kover output (e.g., a “Kover Learning Report” with metrics), your environment is set up correctly.
+- **Kover** can generate large intermediate files, especially with big datasets.  
+- Request adequate memory in your Slurm job (`--mem=XXG`) and ensure you have enough disk space in your working directory or scratch folder.  
+- Clean up temporary files if your pipeline doesn’t do so automatically.
 
 ---
 
-### Questions / Contact
+## 9. Final Check
 
-If you have further issues or environment conflicts, refer back to your HPC docs or the Kover GitHub issues. For local HPC questions, email the cluster support or check with your lab’s HPC admin. 
+1. **Activate** `kover-env`.
+2. **Test** a small dataset with Kover to confirm all dependencies work and you see normal Kover output/logs (e.g., the “Kover Learning Report”).
+3. **Share** your final environment or environment file (`kover-env.yml`) with collaborators to ensure reproducibility.
 
-**Congratulations!** You now have a fully functional `kover-env` environment. You can proceed to run the AMR benchmarking scripts that call Kover.
+**Congratulations!** You have a fully functional Kover environment under Python 2.7 on your HPC system.
